@@ -33,6 +33,11 @@ class MessageController extends Controller
             'last_delivered_at' => $message->created_at,
         ]);
 
+        // Invalidate cache for all participants
+        foreach ($conversation->participants as $participant) {
+            \Illuminate\Support\Facades\Cache::forget("user.{$participant->id}.conversations");
+        }
+
         broadcast(new \App\Events\MessageSent($message))->toOthers();
 
         return back();

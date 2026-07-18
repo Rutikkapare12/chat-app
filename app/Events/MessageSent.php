@@ -65,6 +65,7 @@ class MessageSent implements ShouldBroadcastNow
                     'avatar_url' => $this->message->sender->avatar_url,
                 ] : null,
             ],
+            'conversation' => $this->message->conversation->toChatArray(),
         ];
     }
 }

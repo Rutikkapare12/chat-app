@@ -21,6 +21,10 @@ class ConversationController extends Controller
 
             $conversation = Conversation::findOrCreateDirect($user, User::findOrFail($validated['user_id']));
 
+            // Clear cache for both participants
+            \Illuminate\Support\Facades\Cache::forget("user.{$user->id}.conversations");
+            \Illuminate\Support\Facades\Cache::forget("user.{$validated['user_id']}.conversations");
+
             return redirect()->route('chat.show', $conversation);
         }
 
@@ -39,6 +43,8 @@ class ConversationController extends Controller
             'last_delivered_at' => $timestamp,
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget("user.{$request->user()->id}.conversations");
+
         broadcast(new \App\Events\ConversationRead($conversation->id, $request->user()->id, $timestamp))->toOthers();
 
         return response()->json(['success' => true]);
@@ -54,6 +60,8 @@ class ConversationController extends Controller
         $conversation->participants()->updateExistingPivot($request->user()->id, [
             'last_delivered_at' => $timestamp,
         ]);
+
+        \Illuminate\Support\Facades\Cache::forget("user.{$request->user()->id}.conversations");
 
         broadcast(new \App\Events\ConversationDelivered($conversation->id, $request->user()->id, $timestamp))->toOthers();
 

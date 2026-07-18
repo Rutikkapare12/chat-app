@@ -18,14 +18,14 @@ export function ChatWindow({
     meId,
     meName,
     onlineIds,
-    onTypingUpdate,
+    typingNames = [],
 }: {
     conversation: Conversation;
     messages: ChatMessage[];
     meId: number;
     meName: string;
     onlineIds: Set<number>;
-    onTypingUpdate: (conversationId: number, typingNames: string[]) => void;
+    typingNames?: string[];
 }) {
     const [newMessage, setNewMessage] = useState('');
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>(messages);
@@ -55,46 +55,7 @@ export function ChatWindow({
         }
     }, [conversation.id]);
 
-    const [typingUsers, setTypingUsers] = useState<Record<number, { name: string, timeout: NodeJS.Timeout }>>({});
 
-    useEffect(() => {
-        const ch = channel();
-        if (!ch) return;
-
-        const handleTyping = (e: { id: number; name: string }) => {
-            setTypingUsers((prev) => {
-                const current = { ...prev };
-                if (current[e.id]?.timeout) {
-                    clearTimeout(current[e.id].timeout);
-                }
-                current[e.id] = {
-                    name: e.name,
-                    timeout: setTimeout(() => {
-                        setTypingUsers((p) => {
-                            const next = { ...p };
-                            delete next[e.id];
-                            return next;
-                        });
-                    }, 3000),
-                };
-                return current;
-            });
-        };
-
-        (ch as any).listenForWhisper('typing', handleTyping);
-
-        return () => {
-            setTypingUsers((prev) => {
-                Object.values(prev).forEach((t) => clearTimeout(t.timeout));
-                return {};
-            });
-        };
-    }, [channel]);
-
-    useEffect(() => {
-        const names = Object.values(typingUsers).map((u) => u.name);
-        onTypingUpdate(conversation.id, names);
-    }, [typingUsers, conversation.id, onTypingUpdate]);
 
     const handleSend = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -192,9 +153,9 @@ export function ChatWindow({
 
             {/* Input Area */}
             <div className="flex w-full flex-col p-4 bg-background border-t">
-                {Object.keys(typingUsers).length > 0 && (
+                {typingNames.length > 0 && (
                     <div className="pb-2 text-sm text-primary flex items-center gap-1.5 px-2">
-                        {typingLabel(Object.values(typingUsers).map((u) => u.name))} <TypingDots />
+                        {typingLabel(typingNames)} <TypingDots />
                     </div>
                 )}
                 <form

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 import type { ChatMessage, Conversation } from '@/types/chat';
 import { NewChatDialog } from '@/components/chat/new-chat-dialog';
-import { useEcho, usePresenceChannel } from '@laravel/echo-react';
+import { useEcho, usePresenceChannel, useChannel } from '@laravel/echo-react';
 import { chatApi } from '@/lib/chat-api';
 
 type PageProps = {
@@ -146,15 +146,21 @@ export default function ChatIndex() {
                     updated.unshift(moved);
                     return updated;
                 }
-                return [e.conversation, ...prev];
+                return [
+                    {
+                        ...e.conversation,
+                        unread_count: e.message.user_id !== me.id ? 1 : 0
+                    },
+                    ...prev
+                ];
             });
 
             // Automatically mark received message as read/delivered
             if (e.message.user_id !== me.id) {
-                if (activeId === e.conversation.id) {
-                    chatApi.post(`/chat/${e.conversation.id}/read`).catch(console.error);
+                if (activeId === e.message.conversation_id) {
+                    chatApi.post(`/chat/${e.message.conversation_id}/read`).catch(console.error);
                 } else {
-                    chatApi.post(`/chat/${e.conversation.id}/delivered`).catch(console.error);
+                    chatApi.post(`/chat/${e.message.conversation_id}/delivered`).catch(console.error);
                 }
             }
         }
@@ -165,6 +171,20 @@ export default function ChatIndex() {
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background">
             <Head title="Chat" />
+
+            {conversations.map((c) => (
+                <ConversationSubscription
+                    key={c.id}
+                    conversationId={c.id}
+                    meId={me.id}
+                    onTyping={(names) => {
+                        setTypingByConversation((prev) => {
+                            if (names.length === 0 && !prev[c.id]) return prev;
+                            return { ...prev, [c.id]: names };
+                        });
+                    }}
+                />
+            ))}
 
             <div
                 className={cn(
@@ -192,12 +212,7 @@ export default function ChatIndex() {
                         meId={me.id}
                         meName={me.name}
                         onlineIds={onlineIds}
-                        onTypingUpdate={(conversationId, names) => {
-                            setTypingByConversation((prev) => {
-                                if (names.length === 0 && !prev[conversationId]) return prev;
-                                return { ...prev, [conversationId]: names };
-                            });
-                        }}
+                        typingNames={typingByConversation[activeConversation.id] ?? []}
                     />
                 </div>
             ) : (
@@ -214,5 +229,61 @@ export default function ChatIndex() {
             />
         </div>
     );
+}
+
+function ConversationSubscription({
+    conversationId,
+    meId,
+    onTyping,
+}: {
+    conversationId: number;
+    meId: number;
+    onTyping: (names: string[]) => void;
+}) {
+    const { channel } = useChannel(`chat.${conversationId}`);
+    const [typingUsers, setTypingUsers] = useState<Record<number, { name: string; timeout: NodeJS.Timeout }>>({});
+
+    useEffect(() => {
+        const ch = channel();
+        if (!ch) return;
+
+        const handleTyping = (e: { id: number; name: string }) => {
+            if (e.id === meId) return;
+
+            setTypingUsers((prev) => {
+                const current = { ...prev };
+                if (current[e.id]?.timeout) {
+                    clearTimeout(current[e.id].timeout);
+                }
+                current[e.id] = {
+                    name: e.name,
+                    timeout: setTimeout(() => {
+                        setTypingUsers((p) => {
+                            const next = { ...p };
+                            delete next[e.id];
+                            return next;
+                        });
+                    }, 3000),
+                };
+                return current;
+            });
+        };
+
+        (ch as any).listenForWhisper('typing', handleTyping);
+
+        return () => {
+            (ch as any).stopListeningForWhisper('typing');
+            setTypingUsers((prev) => {
+                Object.values(prev).forEach((t) => clearTimeout(t.timeout));
+                return {};
+            });
+        };
+    }, [channel, meId]);
+
+    useEffect(() => {
+        onTyping(Object.values(typingUsers).map((u) => u.name));
+    }, [typingUsers]);
+
+    return null;
 }
 

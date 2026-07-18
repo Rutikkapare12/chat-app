@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,37 +27,55 @@ class ChatController extends Controller
                 'last_delivered_at' => $timestamp,
             ]);
             broadcast(new \App\Events\ConversationRead($conversation->id, $user->id, $timestamp))->toOthers();
+
+            // Clear cache for current user since their pivot updated
+            Cache::forget("user.{$user->id}.conversations");
         }
 
-        $conversationsQuery = Conversation::forUser($user)
-            ->with(['participants', 'lastMessage.sender'])
-            ->orderByDesc('last_message_at')
-            ->orderByDesc('id')
-            ->get();
+        // Check if there are any conversations with new messages that haven't been marked as delivered
+        $hasUndelivered = Conversation::forUser($user)
+            ->whereHas('participants', function ($q) use ($user) {
+                $q->whereKey($user->id)
+                  ->where(function ($query) {
+                      $query->whereNull('conversation_participants.last_delivered_at')
+                            ->orWhereColumn('conversation_participants.last_delivered_at', '<', 'conversations.last_message_at');
+                  });
+            })
+            ->exists();
 
-        // Mark conversations that have new messages as delivered
-        foreach ($conversationsQuery as $c) {
-            $me = $c->participants->firstWhere('id', $user->id);
-            if ($me && $c->last_message_at) {
-                $lastDelivered = $me->pivot->last_delivered_at;
-                if (!$lastDelivered || $lastDelivered < $c->last_message_at) {
-                    $timestamp = now();
-                    $c->participants()->updateExistingPivot($user->id, [
-                        'last_delivered_at' => $timestamp,
-                    ]);
-                    
-                    // Update pivot in the current collection instance so serialization is correct
-                    $me->pivot->last_delivered_at = $timestamp;
-                    
-                    // Broadcast delivered status
-                    broadcast(new \App\Events\ConversationDelivered($c->id, $user->id, $timestamp))->toOthers();
+        if ($hasUndelivered) {
+            $conversationsToUpdate = Conversation::forUser($user)
+                ->with(['participants'])
+                ->get();
+
+            foreach ($conversationsToUpdate as $c) {
+                $me = $c->participants->firstWhere('id', $user->id);
+                if ($me && $c->last_message_at) {
+                    $lastDelivered = $me->pivot->last_delivered_at;
+                    if (!$lastDelivered || $lastDelivered < $c->last_message_at) {
+                        $timestamp = now();
+                        $c->participants()->updateExistingPivot($user->id, [
+                            'last_delivered_at' => $timestamp,
+                        ]);
+                        broadcast(new \App\Events\ConversationDelivered($c->id, $user->id, $timestamp))->toOthers();
+                    }
                 }
             }
+            // Clear cache for current user
+            Cache::forget("user.{$user->id}.conversations");
         }
 
-        $conversations = $conversationsQuery
-            ->map(fn (Conversation $c) => $c->toChatArray($user))
-            ->values();
+        // Retrieve conversations from cache or fetch from database
+        $conversations = Cache::remember("user.{$user->id}.conversations", now()->addDay(), function () use ($user) {
+            return Conversation::forUser($user)
+                ->with(['participants', 'lastMessage.sender'])
+                ->orderByDesc('last_message_at')
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn (Conversation $c) => $c->toChatArray($user))
+                ->values()
+                ->all();
+        });
 
         $messages = null;
         if ($conversation) {
