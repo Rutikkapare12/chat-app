@@ -20,7 +20,7 @@ class ConversationRead implements ShouldBroadcastNow
     /**
      * Create a new event instance.
      */
-    public function __construct(int $conversationId, int $userId, $lastReadAt)
+    public function __construct(string $conversationId, string $userId, $lastReadAt)
     {
         $this->conversationId = $conversationId;
         $this->userId = $userId;

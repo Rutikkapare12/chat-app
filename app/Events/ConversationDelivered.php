@@ -20,7 +20,7 @@ class ConversationDelivered implements ShouldBroadcastNow
     /**
      * Create a new event instance.
      */
-    public function __construct(int $conversationId, int $userId, $lastDeliveredAt)
+    public function __construct(string $conversationId, string $userId, $lastDeliveredAt)
     {
         $this->conversationId = $conversationId;
         $this->userId = $userId;

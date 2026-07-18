@@ -1,5 +1,5 @@
 export type ChatUser = {
-    id: number;
+    id: string;
     name: string;
     email?: string;
     avatar_url: string | null;
@@ -16,7 +16,7 @@ export type Participant = ChatUser & {
 export type ReactionGroup = {
     emoji: string;
     count: number;
-    user_ids: number[];
+    user_ids: string[];
     user_names: string[];
 };
 
@@ -28,7 +28,7 @@ export type Attachment = {
 };
 
 export type ReplyPreview = {
-    id: number;
+    id: string;
     body: string | null;
     is_deleted: boolean;
     type: string;
@@ -37,9 +37,9 @@ export type ReplyPreview = {
 };
 
 export type ChatMessage = {
-    id: number;
-    conversation_id: number;
-    user_id: number | null;
+    id: string;
+    conversation_id: string;
+    user_id: string | null;
     type: 'text' | 'image' | 'file' | 'system';
     body: string | null;
     is_deleted: boolean;
@@ -52,22 +52,22 @@ export type ChatMessage = {
 };
 
 export type LastMessage = {
-    id: number;
+    id: string;
     type: string;
     body: string | null;
     is_deleted: boolean;
     attachment_name: string | null;
-    sender_id: number | null;
+    sender_id: string | null;
     sender_name: string | null;
     created_at: string;
 };
 
 export type Conversation = {
-    id: number;
+    id: string;
     type: 'direct' | 'group';
     name: string | null;
     avatar_url: string | null;
-    created_by: number | null;
+    created_by: string | null;
     last_message_at: string | null;
     participants: Participant[];
     last_message: LastMessage | null;
@@ -76,5 +76,5 @@ export type Conversation = {
 };
 
 export type SearchResult = ChatMessage & {
-    conversation: { id: number; type: string; name: string | null };
+    conversation: { id: string; type: string; name: string | null };
 };

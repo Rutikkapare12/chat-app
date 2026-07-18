@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('conversation_participants', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('conversation_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             $table->string('role')->default('member'); // member | admin
             $table->timestamp('joined_at')->nullable();
             $table->timestamp('last_read_at')->nullable(); // read receipts + unread counts

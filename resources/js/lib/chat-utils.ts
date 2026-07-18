@@ -2,7 +2,7 @@ import type { ChatMessage, Conversation, LastMessage, Participant } from '@/type
 
 export function conversationDisplay(
     conversation: Conversation,
-    meId: number,
+    meId: string,
 ): { name: string; avatarUrl: string | null; otherUser: Participant | null } {
     if (conversation.type === 'group') {
         return {
@@ -57,7 +57,7 @@ export function formatSidebarTime(iso: string): string {
 /** One-line preview of the latest message for the sidebar. */
 export function lastMessagePreview(
     last: LastMessage | null,
-    meId: number,
+    meId: string,
 ): string {
     if (!last) {
         return 'No messages yet';
@@ -84,9 +84,9 @@ export function lastMessagePreview(
 export function getMessageStatus(
     msg: ChatMessage,
     conversation: Conversation,
-    meId: number
+    meId: string
 ): 'sending' | 'sent' | 'delivered' | 'seen' {
-    if (!msg.id || msg.id < 0) {
+    if (!msg.id) {
         return 'sending';
     }
 
@@ -127,7 +127,7 @@ export function getMessageStatus(
 
 export function getLastMessageStatus(
     conversation: Conversation,
-    meId: number
+    meId: string
 ): 'sending' | 'sent' | 'delivered' | 'seen' | null {
     const last = conversation.last_message;
     if (!last || last.is_deleted || last.sender_id !== meId || last.type === 'system') {

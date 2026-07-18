@@ -34,10 +34,10 @@ export function ChatSidebar({
     onSearch,
 }: {
     conversations: Conversation[];
-    activeId: number | null;
-    meId: number;
-    onlineIds: Set<number>;
-    typingByConversation: Record<number, string[]>;
+    activeId: string | null;
+    meId: string;
+    onlineIds: Set<string>;
+    typingByConversation: Record<string, string[]>;
     onNewChat: () => void;
     onNewGroup: () => void;
     onSearch: () => void;

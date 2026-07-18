@@ -11,10 +11,10 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('conversation_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete(); // null for system messages
-            $table->foreignId('reply_to_id')->nullable()->constrained('messages')->nullOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('conversation_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('user_id')->nullable()->constrained()->nullOnDelete(); // null for system messages
+            $table->foreignUuid('reply_to_id')->nullable()->constrained('messages')->nullOnDelete();
             $table->string('type')->default('text'); // text | image | file | system
             $table->text('body')->nullable();
             $table->string('attachment_path')->nullable();

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 #[Fillable([
     'conversation_id', 'user_id', 'reply_to_id', 'type', 'body',
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Message extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected function casts(): array
     {

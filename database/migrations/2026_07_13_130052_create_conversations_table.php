@@ -11,11 +11,11 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('conversations', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('type')->default('direct'); // direct | group
             $table->string('name')->nullable(); // group name (null for direct)
             $table->string('avatar_path')->nullable(); // group avatar
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('last_message_at')->nullable()->index(); // sidebar ordering
             $table->timestamps();
         });

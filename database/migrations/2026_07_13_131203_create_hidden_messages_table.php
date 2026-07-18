@@ -13,9 +13,9 @@ return new class extends Migration {
         // "Delete for me": the message stays for everyone else,
         // but is hidden from this user's view.
         Schema::create('hidden_messages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('message_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('message_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
 
             $table->unique(['message_id', 'user_id']);

@@ -22,9 +22,9 @@ export function ChatWindow({
 }: {
     conversation: Conversation;
     messages: ChatMessage[];
-    meId: number;
+    meId: string;
     meName: string;
-    onlineIds: Set<number>;
+    onlineIds: Set<string>;
     typingNames?: string[];
 }) {
     const [newMessage, setNewMessage] = useState('');
@@ -209,7 +209,7 @@ export function ChatWindow({
     );
 }
 
-function MessageStatusIcon({ msg, conversation, meId }: { msg: ChatMessage, conversation: Conversation, meId: number }) {
+function MessageStatusIcon({ msg, conversation, meId }: { msg: ChatMessage, conversation: Conversation, meId: string }) {
     const status = getMessageStatus(msg, conversation, meId);
 
     if (status === 'seen') {

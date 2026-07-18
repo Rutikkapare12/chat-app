@@ -16,7 +16,7 @@ class ConversationController extends Controller
 
         if ($request->filled('user_id')) {
             $validated = $request->validate([
-                'user_id' => ['required', 'integer', 'exists:users,id', 'not_in:'.$user->id],
+                'user_id' => ['required', 'string', 'uuid', 'exists:users,id', 'not_in:'.$user->id],
             ]);
 
             $conversation = Conversation::findOrCreateDirect($user, User::findOrFail($validated['user_id']));

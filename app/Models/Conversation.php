@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 #[Fillable(['type', 'name', 'avatar_path', 'created_by', 'last_message_at'])]
 class Conversation extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     protected function casts(): array 
     {

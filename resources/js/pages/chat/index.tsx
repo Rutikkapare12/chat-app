@@ -38,8 +38,8 @@ export default function ChatIndex() {
     const [prevConversationsProp, setPrevConversationsProp] = useState(
         props.conversations,
     );
-    const [typingByConversation, setTypingByConversation] = useState<Record<number, string[]>>({});
-    const [onlineIds, setOnlineIds] = useState<Set<number>>(new Set());
+    const [typingByConversation, setTypingByConversation] = useState<Record<string, string[]>>({});
+    const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
 
     if (prevConversationsProp !== props.conversations) {
         setPrevConversationsProp(props.conversations);
@@ -259,18 +259,18 @@ function ConversationSubscription({
     meId,
     onTyping,
 }: {
-    conversationId: number;
-    meId: number;
+    conversationId: string;
+    meId: string;
     onTyping: (names: string[]) => void;
 }) {
     const { channel } = useChannel(`chat.${conversationId}`);
-    const [typingUsers, setTypingUsers] = useState<Record<number, { name: string; timeout: NodeJS.Timeout }>>({});
+    const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; timeout: NodeJS.Timeout }>>({});
 
     useEffect(() => {
         const ch = channel();
         if (!ch) return;
 
-        const handleTyping = (e: { id: number; name: string }) => {
+        const handleTyping = (e: { id: string; name: string }) => {
             if (e.id === meId) return;
 
             setTypingUsers((prev) => {
