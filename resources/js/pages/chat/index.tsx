@@ -3,12 +3,14 @@ import { MessagesSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ChatSidebar } from '@/components/chat/chat-sidebar';
 import { ChatWindow } from '@/components/chat/chat-window';
+import { ChatAvatar } from '@/components/chat/chat-avatar';
 import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 import type { ChatMessage, Conversation } from '@/types/chat';
 import { NewChatDialog } from '@/components/chat/new-chat-dialog';
 import { useEcho, usePresenceChannel, useChannel } from '@laravel/echo-react';
 import { chatApi } from '@/lib/chat-api';
+import { toast } from 'sonner';
 
 type PageProps = {
     auth: Auth;
@@ -161,6 +163,27 @@ export default function ChatIndex() {
                     chatApi.post(`/chat/${e.message.conversation_id}/read`).catch(console.error);
                 } else {
                     chatApi.post(`/chat/${e.message.conversation_id}/delivered`).catch(console.error);
+
+                    const senderName = e.message.sender?.name ?? 'New Message';
+                    const messageBody = e.message.body ?? (e.message.type === 'image' ? '📷 Photo' : '📎 File');
+
+                    toast(
+                        <div className="flex items-center gap-3">
+                            <ChatAvatar
+                                name={senderName}
+                                avatarUrl={e.message.sender?.avatar_url ?? null}
+                                className="size-9"
+                            />
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-semibold text-foreground truncate">{senderName}</span>
+                                <span className="text-xs text-muted-foreground truncate">{messageBody}</span>
+                            </div>
+                        </div>,
+                        {
+                            duration: 5000,
+                            position: 'bottom-right',
+                        }
+                    );
                 }
             }
         }

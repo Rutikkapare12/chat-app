@@ -40,7 +40,7 @@ createInertiaApp({
         return (
             <TooltipProvider delayDuration={0}>
                 {app}
-                <Toaster />
+                <Toaster position="bottom-right" />
             </TooltipProvider>
         );
     },
@@ -51,3 +51,8 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// Block default browser right-click context menu
+if (typeof window !== 'undefined') {
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+}
