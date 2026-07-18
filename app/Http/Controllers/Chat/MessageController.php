@@ -28,6 +28,11 @@ class MessageController extends Controller
             'last_message_at' => $message->created_at,
         ]);
 
+        $conversation->participants()->updateExistingPivot($request->user()->id, [
+            'last_read_at' => $message->created_at,
+            'last_delivered_at' => $message->created_at,
+        ]);
+
         broadcast(new \App\Events\MessageSent($message))->toOthers();
 
         return back();

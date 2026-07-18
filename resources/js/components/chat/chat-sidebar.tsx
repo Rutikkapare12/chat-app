@@ -5,6 +5,8 @@ import {
     MessageSquarePlus,
     Search,
     Users,
+    Check,
+    CheckCheck,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ChatAvatar } from '@/components/chat/chat-avatar';
@@ -16,6 +18,7 @@ import {
     conversationDisplay,
     formatSidebarTime,
     lastMessagePreview,
+    getLastMessageStatus,
 } from '@/lib/chat-utils';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/chat';
@@ -169,12 +172,17 @@ export function ChatSidebar({
                                             {typing} <TypingDots />
                                         </span>
                                     ) : (
-                                        <span className="truncate text-sm text-muted-foreground">
-                                            {lastMessagePreview(
-                                                conversation.last_message,
-                                                meId,
+                                        <div className="flex items-center gap-1 min-w-0 flex-1 text-sm text-muted-foreground">
+                                            {getLastMessageStatus(conversation, meId) && (
+                                                <SidebarMessageStatusIcon status={getLastMessageStatus(conversation, meId)!} />
                                             )}
-                                        </span>
+                                            <span className="truncate">
+                                                {lastMessagePreview(
+                                                    conversation.last_message,
+                                                    meId,
+                                                )}
+                                            </span>
+                                        </div>
                                     )}
                                      <span className="flex shrink-0 items-center gap-1">
                                         {conversation.muted && (
@@ -195,4 +203,14 @@ export function ChatSidebar({
             </div>
         </div>
     );
+}
+
+function SidebarMessageStatusIcon({ status }: { status: 'sending' | 'sent' | 'delivered' | 'seen' }) {
+    if (status === 'seen') {
+        return <CheckCheck className="size-3.5 text-sky-500 shrink-0" />;
+    }
+    if (status === 'delivered') {
+        return <CheckCheck className="size-3.5 text-muted-foreground shrink-0" />;
+    }
+    return <Check className="size-3.5 text-muted-foreground shrink-0" />;
 }

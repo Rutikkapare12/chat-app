@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 import type { ChatMessage, Conversation } from '@/types/chat';
 import { NewChatDialog } from '@/components/chat/new-chat-dialog';
-import { useEcho } from '@laravel/echo-react';
+import { useEcho, usePresenceChannel } from '@laravel/echo-react';
+import { chatApi } from '@/lib/chat-api';
 
 type PageProps = {
     auth: Auth;
@@ -28,19 +29,97 @@ export default function ChatIndex() {
     >(null);
 
     const activeId = props.activeConversation?.id ?? null;
-    const activeConversation = props.activeConversation;
-
+    
     // ── Sync server props into local state ─────────────────────────────
     // Adjusted during render (not in an effect) so there's no flash of
     // stale state — see react.dev "You Might Not Need an Effect".
     const [prevConversationsProp, setPrevConversationsProp] = useState(
         props.conversations,
     );
+    const [typingByConversation, setTypingByConversation] = useState<Record<number, string[]>>({});
+    const [onlineIds, setOnlineIds] = useState<Set<number>>(new Set());
 
     if (prevConversationsProp !== props.conversations) {
         setPrevConversationsProp(props.conversations);
         setConversations(props.conversations);
     }
+
+    const { channel: presenceChannel } = usePresenceChannel('online');
+
+    useEffect(() => {
+        const ch = presenceChannel();
+        if (!ch) return;
+
+        ch.here((users: any[]) => {
+            setOnlineIds(new Set(users.map((u) => u.id)));
+        })
+        .joining((user: any) => {
+            setOnlineIds((prev) => {
+                const next = new Set(prev);
+                next.add(user.id);
+                return next;
+            });
+        })
+        .leaving((user: any) => {
+            setOnlineIds((prev) => {
+                const next = new Set(prev);
+                next.delete(user.id);
+                return next;
+            });
+        });
+    }, [presenceChannel]);
+
+    useEffect(() => {
+        if (activeId) {
+            chatApi.post(`/chat/${activeId}/read`).catch(console.error);
+            setConversations((prev) =>
+                prev.map((c) =>
+                    c.id === activeId ? { ...c, unread_count: 0 } : c
+                )
+            );
+        }
+    }, [activeId]);
+
+    useEcho(`user.${me.id}`, 'ConversationRead', (e: any) => {
+        setConversations((prev) => {
+            return prev.map((c) => {
+                if (c.id === e.conversationId) {
+                    const updatedParticipants = c.participants.map((p) => {
+                        if (p.id === e.userId) {
+                            return { ...p, last_read_at: e.lastReadAt, last_delivered_at: e.lastReadAt };
+                        }
+                        return p;
+                    });
+                    return {
+                        ...c,
+                        participants: updatedParticipants,
+                        unread_count: e.userId === me.id ? 0 : c.unread_count,
+                    };
+                }
+                return c;
+            });
+        });
+    }, [me.id]);
+
+    useEcho(`user.${me.id}`, 'ConversationDelivered', (e: any) => {
+        setConversations((prev) => {
+            return prev.map((c) => {
+                if (c.id === e.conversationId) {
+                    const updatedParticipants = c.participants.map((p) => {
+                        if (p.id === e.userId) {
+                            return { ...p, last_delivered_at: e.lastDeliveredAt };
+                        }
+                        return p;
+                    });
+                    return {
+                        ...c,
+                        participants: updatedParticipants,
+                    };
+                }
+                return c;
+            });
+        });
+    }, [me.id]);
 
     useEcho(`user.${me.id}`, 'MessageSent', (e: any) => {
         if (e.conversation && e.message) {
@@ -69,10 +148,19 @@ export default function ChatIndex() {
                 }
                 return [e.conversation, ...prev];
             });
+
+            // Automatically mark received message as read/delivered
+            if (e.message.user_id !== me.id) {
+                if (activeId === e.conversation.id) {
+                    chatApi.post(`/chat/${e.conversation.id}/read`).catch(console.error);
+                } else {
+                    chatApi.post(`/chat/${e.conversation.id}/delivered`).catch(console.error);
+                }
+            }
         }
     }, [me.id, activeId]);
 
-    const onlineIds = new Set<number>();
+    const activeConversation = conversations.find((c) => c.id === activeId) ?? props.activeConversation;
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -89,7 +177,7 @@ export default function ChatIndex() {
                     activeId={activeId}
                     meId={me.id}
                     onlineIds={onlineIds}
-                    typingByConversation={{}}
+                    typingByConversation={typingByConversation}
                     onNewChat={() => setDialog('chat')}
                     onNewGroup={() => setDialog('group')}
                     onSearch={() => setDialog('search')}
@@ -102,7 +190,14 @@ export default function ChatIndex() {
                         conversation={activeConversation}
                         messages={props.messages ?? []}
                         meId={me.id}
+                        meName={me.name}
                         onlineIds={onlineIds}
+                        onTypingUpdate={(conversationId, names) => {
+                            setTypingByConversation((prev) => {
+                                if (names.length === 0 && !prev[conversationId]) return prev;
+                                return { ...prev, [conversationId]: names };
+                            });
+                        }}
                     />
                 </div>
             ) : (

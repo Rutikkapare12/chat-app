@@ -13,6 +13,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Conversations
     Route::post('conversations', [ConversationController::class, 'store'])->name('conversations.store');
+    Route::post('chat/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
+    Route::post('chat/{conversation}/delivered', [ConversationController::class, 'markAsDelivered'])->name('conversations.delivered');
 
     // Messages
     Route::post('chat/{conversation}/messages', [MessageController::class, 'store'])->name('messages.store');

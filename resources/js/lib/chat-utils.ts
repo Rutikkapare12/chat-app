@@ -1,4 +1,4 @@
-import type { Conversation, LastMessage, Participant } from '@/types/chat';
+import type { ChatMessage, Conversation, LastMessage, Participant } from '@/types/chat';
 
 export function conversationDisplay(
     conversation: Conversation,
@@ -79,4 +79,86 @@ export function lastMessagePreview(
     }
 
     return `${prefix}${last.body ?? ''}`;
+}
+
+export function getMessageStatus(
+    msg: ChatMessage,
+    conversation: Conversation,
+    meId: number
+): 'sending' | 'sent' | 'delivered' | 'seen' {
+    if (!msg.id || msg.id < 0) {
+        return 'sending';
+    }
+
+    if (msg.user_id !== meId) {
+        return 'sent';
+    }
+
+    const otherParticipants = conversation.participants.filter(p => p.id !== meId);
+    if (otherParticipants.length === 0) {
+        return 'sent';
+    }
+
+    const msgTime = new Date(msg.created_at).getTime();
+
+    // Check if all other participants have read it
+    const allRead = otherParticipants.every(p => {
+        return p.last_read_at && new Date(p.last_read_at).getTime() >= msgTime;
+    });
+
+    if (allRead) {
+        return 'seen';
+    }
+
+    // Check if all other participants have received it
+    const allDelivered = otherParticipants.every(p => {
+        return (
+            (p.last_read_at && new Date(p.last_read_at).getTime() >= msgTime) ||
+            (p.last_delivered_at && new Date(p.last_delivered_at).getTime() >= msgTime)
+        );
+    });
+
+    if (allDelivered) {
+        return 'delivered';
+    }
+
+    return 'sent';
+}
+
+export function getLastMessageStatus(
+    conversation: Conversation,
+    meId: number
+): 'sending' | 'sent' | 'delivered' | 'seen' | null {
+    const last = conversation.last_message;
+    if (!last || last.is_deleted || last.sender_id !== meId || last.type === 'system') {
+        return null;
+    }
+
+    const otherParticipants = conversation.participants.filter(p => p.id !== meId);
+    if (otherParticipants.length === 0) {
+        return 'sent';
+    }
+
+    const msgTime = new Date(last.created_at).getTime();
+
+    const allRead = otherParticipants.every(p => {
+        return p.last_read_at && new Date(p.last_read_at).getTime() >= msgTime;
+    });
+
+    if (allRead) {
+        return 'seen';
+    }
+
+    const allDelivered = otherParticipants.every(p => {
+        return (
+            (p.last_read_at && new Date(p.last_read_at).getTime() >= msgTime) ||
+            (p.last_delivered_at && new Date(p.last_delivered_at).getTime() >= msgTime)
+        );
+    });
+
+    if (allDelivered) {
+        return 'delivered';
+    }
+
+    return 'sent';
 }

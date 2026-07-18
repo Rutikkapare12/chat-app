@@ -1,26 +1,31 @@
 import { useState, useRef, useEffect } from 'react';
-import EmojiPicker from 'emoji-picker-react';
-import { Send, Smile, Paperclip, MoreVertical, ArrowLeft } from 'lucide-react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { Send, Smile, Paperclip, MoreVertical, ArrowLeft, Check, CheckCheck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatAvatar } from '@/components/chat/chat-avatar';
-import { conversationDisplay, formatClock } from '@/lib/chat-utils';
+import { conversationDisplay, formatClock, getMessageStatus } from '@/lib/chat-utils';
 import { cn } from '@/lib/utils';
 import type { ChatMessage, Conversation } from '@/types/chat';
 import { router } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
+import { TypingDots, typingLabel } from './typing-indicator';
 
 export function ChatWindow({
     conversation,
     messages,
     meId,
+    meName,
     onlineIds,
+    onTypingUpdate,
 }: {
     conversation: Conversation;
     messages: ChatMessage[];
     meId: number;
+    meName: string;
     onlineIds: Set<number>;
+    onTypingUpdate: (conversationId: number, typingNames: string[]) => void;
 }) {
     const [newMessage, setNewMessage] = useState('');
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>(messages);
@@ -41,7 +46,7 @@ export function ChatWindow({
         scrollToBottom();
     }, [localMessages]);
 
-    useEcho(`chat.${conversation.id}`, 'MessageSent', (e: any) => {
+    const { channel } = useEcho(`chat.${conversation.id}`, 'MessageSent', (e: any) => {
         if (e.message) {
             setLocalMessages((prev) => {
                 if (prev.find((m) => m.id === e.message.id)) return prev;
@@ -49,6 +54,47 @@ export function ChatWindow({
             });
         }
     }, [conversation.id]);
+
+    const [typingUsers, setTypingUsers] = useState<Record<number, { name: string, timeout: NodeJS.Timeout }>>({});
+
+    useEffect(() => {
+        const ch = channel();
+        if (!ch) return;
+
+        const handleTyping = (e: { id: number; name: string }) => {
+            setTypingUsers((prev) => {
+                const current = { ...prev };
+                if (current[e.id]?.timeout) {
+                    clearTimeout(current[e.id].timeout);
+                }
+                current[e.id] = {
+                    name: e.name,
+                    timeout: setTimeout(() => {
+                        setTypingUsers((p) => {
+                            const next = { ...p };
+                            delete next[e.id];
+                            return next;
+                        });
+                    }, 3000),
+                };
+                return current;
+            });
+        };
+
+        (ch as any).listenForWhisper('typing', handleTyping);
+
+        return () => {
+            setTypingUsers((prev) => {
+                Object.values(prev).forEach((t) => clearTimeout(t.timeout));
+                return {};
+            });
+        };
+    }, [channel]);
+
+    useEffect(() => {
+        const names = Object.values(typingUsers).map((u) => u.name);
+        onTypingUpdate(conversation.id, names);
+    }, [typingUsers, conversation.id, onTypingUpdate]);
 
     const handleSend = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -130,9 +176,14 @@ export function ChatWindow({
                                     <p className="whitespace-pre-wrap">{msg.body}</p>
                                 )}
                             </div>
-                            <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                                {formatClock(msg.created_at)}
-                            </span>
+                            <div className="flex items-center gap-1 mt-1 px-1">
+                                <span className="text-[10px] text-muted-foreground">
+                                    {formatClock(msg.created_at)}
+                                </span>
+                                {isMe && msg.type !== 'system' && (
+                                    <MessageStatusIcon msg={msg} conversation={conversation} meId={meId} />
+                                )}
+                            </div>
                         </div>
                     );
                 })}
@@ -140,10 +191,15 @@ export function ChatWindow({
             </div>
 
             {/* Input Area */}
-            <div className="border-t p-3 bg-background">
+            <div className="flex w-full flex-col p-4 bg-background border-t">
+                {Object.keys(typingUsers).length > 0 && (
+                    <div className="pb-2 text-sm text-primary flex items-center gap-1.5 px-2">
+                        {typingLabel(Object.values(typingUsers).map((u) => u.name))} <TypingDots />
+                    </div>
+                )}
                 <form
                     onSubmit={handleSend}
-                    className="flex items-center gap-2"
+                    className="flex w-full items-center gap-2"
                 >
                     <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground">
                         <Paperclip className="size-5" />
@@ -151,10 +207,16 @@ export function ChatWindow({
 
                     <div className="flex-1 relative flex items-center bg-muted/50 rounded-full px-3 py-1 border focus-within:ring-1 focus-within:ring-primary/50">
                         <Input
-                            className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 px-2 h-10"
-                            placeholder="Type a message..."
                             value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
+                            onChange={(e) => {
+                                setNewMessage(e.target.value);
+                                const ch = channel();
+                                if (ch) {
+                                    (ch as any).whisper('typing', { id: meId, name: meName });
+                                }
+                            }}
+                            placeholder="Type a message..."
+                            className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 px-2 h-10"
                         />
                         <Popover>
                             <PopoverTrigger asChild>
@@ -166,7 +228,7 @@ export function ChatWindow({
                                 <EmojiPicker
                                     onEmojiClick={handleEmojiClick}
                                     autoFocusSearch={false}
-                                    theme="auto"
+                                    theme={Theme.AUTO}
                                 />
                             </PopoverContent>
                         </Popover>
@@ -184,4 +246,16 @@ export function ChatWindow({
             </div>
         </div>
     );
+}
+
+function MessageStatusIcon({ msg, conversation, meId }: { msg: ChatMessage, conversation: Conversation, meId: number }) {
+    const status = getMessageStatus(msg, conversation, meId);
+
+    if (status === 'seen') {
+        return <CheckCheck className="size-3.5 text-sky-500 shrink-0" />;
+    }
+    if (status === 'delivered') {
+        return <CheckCheck className="size-3.5 text-muted-foreground shrink-0" />;
+    }
+    return <Check className="size-3.5 text-muted-foreground shrink-0" />;
 }

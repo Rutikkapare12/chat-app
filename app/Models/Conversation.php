@@ -27,7 +27,7 @@ class Conversation extends Model
     public function participants(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'conversation_participants')
-            ->withPivot(['role', 'joined_at', 'last_read_at', 'muted_at'])
+            ->withPivot(['role', 'joined_at', 'last_read_at', 'last_delivered_at', 'muted_at'])
             ->withTimestamps();
     }
 
@@ -151,6 +151,9 @@ class Conversation extends Model
                 'role' => $u->pivot->role,
                 'last_read_at' => $u->pivot->last_read_at
                     ? Carbon::parse($u->pivot->last_read_at)->toIso8601String()
+                    : null,
+                'last_delivered_at' => $u->pivot->last_delivered_at
+                    ? Carbon::parse($u->pivot->last_delivered_at)->toIso8601String()
                     : null,
             ])->values()->all(),
             'last_message' => $this->lastMessage ? [

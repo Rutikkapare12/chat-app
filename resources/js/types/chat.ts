@@ -10,6 +10,7 @@ export type Participant = ChatUser & {
     last_seen_at: string | null;
     role: 'member' | 'admin';
     last_read_at: string | null;
+    last_delivered_at: string | null;
 };
 
 export type ReactionGroup = {
