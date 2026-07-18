@@ -155,6 +155,7 @@ export function ChatSidebar({
                                                     ? 'font-semibold text-primary'
                                                     : 'text-muted-foreground',
                                             )}
+                                            suppressHydrationWarning
                                         >
                                             {formatSidebarTime(
                                                 conversation.last_message_at,
