@@ -19,6 +19,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
     AlertDialog,
@@ -64,7 +65,9 @@ export function ChatWindow({
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>(messages);
     const [groupInfoOpen, setGroupInfoOpen] = useState(false);
     const [deleteMessageId, setDeleteMessageId] = useState<string | null>(null);
-    const [deleteMessageType, setDeleteMessageType] = useState<'for_me' | 'for_everyone'>('for_me');
+    const [deleteMessageType, setDeleteMessageType] = useState<
+        'for_me' | 'for_everyone'
+    >('for_me');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const display = conversationDisplay(conversation, meId);
@@ -104,22 +107,35 @@ export function ChatWindow({
         'MessageDeleted',
         (e: any) => {
             if (e.messageId) {
-                setLocalMessages((prev) => 
-                    prev.map(m => m.id === e.messageId ? { ...m, is_deleted: true, body: null } : m)
+                setLocalMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === e.messageId
+                            ? { ...m, is_deleted: true, body: null }
+                            : m,
+                    ),
                 );
             }
         },
         [conversation.id],
     );
 
-    const handleDelete = (messageId: string, type: 'for_me' | 'for_everyone') => {
+    const handleDelete = (
+        messageId: string,
+        type: 'for_me' | 'for_everyone',
+    ) => {
         router.delete(`/chat/${conversation.id}/messages/${messageId}`, {
             data: { type },
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                setLocalMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: true, body: null } : m));
-            }
+                setLocalMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === messageId
+                            ? { ...m, is_deleted: true, body: null }
+                            : m,
+                    ),
+                );
+            },
         });
     };
 
@@ -229,7 +245,7 @@ export function ChatWindow({
                             <div
                                 key={msg.id}
                                 className={cn(
-                                    'flex flex-col group',
+                                    'group flex flex-col',
                                     isMe ? 'items-end' : 'items-start',
                                 )}
                             >
@@ -255,53 +271,73 @@ export function ChatWindow({
                                         isMe
                                             ? 'rounded-tr-none bg-primary text-primary-foreground'
                                             : 'rounded-tl-none bg-muted text-foreground',
-                                        msg.is_deleted && 'bg-muted text-muted-foreground italic'
+                                        msg.is_deleted &&
+                                            'bg-muted text-muted-foreground italic',
                                     )}
                                 >
                                     {!msg.is_deleted && (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     className={cn(
-                                                        "absolute top-1 z-10 size-6 bg-background/50 backdrop-blur-sm shadow-sm rounded-full text-foreground hover:bg-background transition-opacity",
-                                                        "opacity-0 pointer-events-none",
-                                                        "group-hover:opacity-100 group-hover:pointer-events-auto",
-                                                        "data-[state=open]:opacity-100 data-[state=open]:pointer-events-auto",
-                                                        isMe ? "-left-8" : "-right-8"
+                                                        'absolute top-1 z-10 size-6 rounded-full bg-background/50 text-foreground shadow-sm backdrop-blur-sm transition-opacity hover:bg-background',
+                                                        'pointer-events-none opacity-0',
+                                                        'group-hover:pointer-events-auto group-hover:opacity-100',
+                                                        'data-[state=open]:pointer-events-auto data-[state=open]:opacity-100',
+                                                        isMe
+                                                            ? '-left-8'
+                                                            : '-right-8',
                                                     )}
                                                 >
                                                     <MoreVertical className="size-3" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                                <DropdownMenuContent align={isMe ? "end" : "start"}>
-                                                    <DropdownMenuItem onSelect={() => {
+                                            <DropdownMenuContent
+                                                align={isMe ? 'end' : 'start'}
+                                            >
+                                                <DropdownMenuLabel className="pointer-events-none text-muted-foreground font-normal">
+                                                    Delete Message ?
+                                                </DropdownMenuLabel>
+                                                <DropdownMenuItem
+                                                    onSelect={() => {
                                                         setTimeout(() => {
-                                                            setDeleteMessageType('for_me');
-                                                            setDeleteMessageId(msg.id);
+                                                            setDeleteMessageType(
+                                                                'for_me',
+                                                            );
+                                                            setDeleteMessageId(
+                                                                msg.id,
+                                                            );
                                                         }, 50);
-                                                    }}>
-                                                        Delete for me
+                                                    }}
+                                                >
+                                                    Delete for me
+                                                </DropdownMenuItem>
+                                                {isMe && (
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                                        onSelect={() => {
+                                                            setTimeout(() => {
+                                                                setDeleteMessageType(
+                                                                    'for_everyone',
+                                                                );
+                                                                setDeleteMessageId(
+                                                                    msg.id,
+                                                                );
+                                                            }, 50);
+                                                        }}
+                                                    >
+                                                        Delete for everyone
                                                     </DropdownMenuItem>
-                                                    {isMe && (
-                                                        <DropdownMenuItem 
-                                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                            onSelect={() => {
-                                                                setTimeout(() => {
-                                                                    setDeleteMessageType('for_everyone');
-                                                                    setDeleteMessageId(msg.id);
-                                                                }, 50);
-                                                            }}
-                                                        >
-                                                            Delete for everyone
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     )}
                                     <div className="pr-10 break-words whitespace-pre-wrap">
-                                        {msg.is_deleted ? 'This message was deleted' : msg.body}
+                                        {msg.is_deleted
+                                            ? 'This message was deleted'
+                                            : msg.body}
                                     </div>
                                     <div
                                         className={cn(
@@ -410,10 +446,15 @@ export function ChatWindow({
                 />
             )}
 
-            <AlertDialog open={!!deleteMessageId} onOpenChange={(open) => !open && setDeleteMessageId(null)}>
+            <AlertDialog
+                open={!!deleteMessageId}
+                onOpenChange={(open) => !open && setDeleteMessageId(null)}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="text-xl text-primary">Delete message ?</AlertDialogTitle>
+                        <AlertDialogTitle className="text-xl text-primary">
+                            Delete message ?
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
                             {deleteMessageType === 'for_everyone'
                                 ? 'Are you sure you want to delete this message for everyone? This action cannot be undone.'
@@ -422,9 +463,13 @@ export function ChatWindow({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
+                        <AlertDialogAction
                             onClick={() => {
-                                if (deleteMessageId) handleDelete(deleteMessageId, deleteMessageType);
+                                if (deleteMessageId)
+                                    handleDelete(
+                                        deleteMessageId,
+                                        deleteMessageType,
+                                    );
                                 setDeleteMessageId(null);
                             }}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
