@@ -80,26 +80,34 @@ class ChatController extends Controller
         $messages = null;
         if ($conversation) {
             $messages = $conversation->messages()
-                ->with('sender')
+                ->withTrashed()
+                ->with(['sender', 'hiddenFor' => function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                }])
                 ->orderByDesc('id')
                 ->limit(50)
                 ->get()
                 ->reverse()
-                ->map(fn ($m) => [
-                    'id' => $m->id,
-                    'conversation_id' => $m->conversation_id,
-                    'user_id' => $m->user_id,
-                    'type' => $m->type,
-                    'body' => $m->deleted_at ? null : $m->body,
-                    'is_deleted' => (bool) $m->deleted_at,
-                    'edited_at' => $m->edited_at?->toIso8601String(),
-                    'created_at' => $m->created_at->toIso8601String(),
-                    'sender' => $m->sender ? [
-                        'id' => $m->sender->id,
-                        'name' => $m->sender->name,
-                        'avatar_url' => $m->sender->avatar_url,
-                    ] : null,
-                ])
+                ->map(function ($m) {
+                    $isHidden = $m->hiddenFor->isNotEmpty();
+                    $isDeleted = $m->deleted_at || $isHidden;
+
+                    return [
+                        'id' => $m->id,
+                        'conversation_id' => $m->conversation_id,
+                        'user_id' => $m->user_id,
+                        'type' => $m->type,
+                        'body' => $isDeleted ? null : $m->body,
+                        'is_deleted' => $isDeleted,
+                        'edited_at' => $m->edited_at?->toIso8601String(),
+                        'created_at' => $m->created_at->toIso8601String(),
+                        'sender' => $m->sender ? [
+                            'id' => $m->sender->id,
+                            'name' => $m->sender->name,
+                            'avatar_url' => $m->sender->avatar_url,
+                        ] : null,
+                    ];
+                })
                 ->values()
                 ->all();
         }

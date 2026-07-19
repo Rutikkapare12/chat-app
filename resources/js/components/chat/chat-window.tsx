@@ -14,6 +14,22 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatAvatar } from '@/components/chat/chat-avatar';
@@ -47,6 +63,8 @@ export function ChatWindow({
     const [newMessage, setNewMessage] = useState('');
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>(messages);
     const [groupInfoOpen, setGroupInfoOpen] = useState(false);
+    const [deleteMessageId, setDeleteMessageId] = useState<string | null>(null);
+    const [deleteMessageType, setDeleteMessageType] = useState<'for_me' | 'for_everyone'>('for_me');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const display = conversationDisplay(conversation, meId);
@@ -80,6 +98,30 @@ export function ChatWindow({
         },
         [conversation.id],
     );
+
+    useEcho(
+        `chat.${conversation.id}`,
+        'MessageDeleted',
+        (e: any) => {
+            if (e.messageId) {
+                setLocalMessages((prev) => 
+                    prev.map(m => m.id === e.messageId ? { ...m, is_deleted: true, body: null } : m)
+                );
+            }
+        },
+        [conversation.id],
+    );
+
+    const handleDelete = (messageId: string, type: 'for_me' | 'for_everyone') => {
+        router.delete(`/chat/${conversation.id}/messages/${messageId}`, {
+            data: { type },
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setLocalMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: true, body: null } : m));
+            }
+        });
+    };
 
     const handleSend = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -187,7 +229,7 @@ export function ChatWindow({
                             <div
                                 key={msg.id}
                                 className={cn(
-                                    'flex flex-col',
+                                    'flex flex-col group',
                                     isMe ? 'items-end' : 'items-start',
                                 )}
                             >
@@ -213,10 +255,53 @@ export function ChatWindow({
                                         isMe
                                             ? 'rounded-tr-none bg-primary text-primary-foreground'
                                             : 'rounded-tl-none bg-muted text-foreground',
+                                        msg.is_deleted && 'bg-muted text-muted-foreground italic'
                                     )}
                                 >
+                                    {!msg.is_deleted && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className={cn(
+                                                        "absolute top-1 z-10 size-6 bg-background/50 backdrop-blur-sm shadow-sm rounded-full text-foreground hover:bg-background transition-opacity",
+                                                        "opacity-0 pointer-events-none",
+                                                        "group-hover:opacity-100 group-hover:pointer-events-auto",
+                                                        "data-[state=open]:opacity-100 data-[state=open]:pointer-events-auto",
+                                                        isMe ? "-left-8" : "-right-8"
+                                                    )}
+                                                >
+                                                    <MoreVertical className="size-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                                <DropdownMenuContent align={isMe ? "end" : "start"}>
+                                                    <DropdownMenuItem onSelect={() => {
+                                                        setTimeout(() => {
+                                                            setDeleteMessageType('for_me');
+                                                            setDeleteMessageId(msg.id);
+                                                        }, 50);
+                                                    }}>
+                                                        Delete for me
+                                                    </DropdownMenuItem>
+                                                    {isMe && (
+                                                        <DropdownMenuItem 
+                                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                            onSelect={() => {
+                                                                setTimeout(() => {
+                                                                    setDeleteMessageType('for_everyone');
+                                                                    setDeleteMessageId(msg.id);
+                                                                }, 50);
+                                                            }}
+                                                        >
+                                                            Delete for everyone
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                    )}
                                     <div className="pr-10 break-words whitespace-pre-wrap">
-                                        {msg.body}
+                                        {msg.is_deleted ? 'This message was deleted' : msg.body}
                                     </div>
                                     <div
                                         className={cn(
@@ -229,7 +314,7 @@ export function ChatWindow({
                                         <span>
                                             {formatClock(msg.created_at)}
                                         </span>
-                                        {isMe && (
+                                        {isMe && !msg.is_deleted && (
                                             <MessageStatusIcon
                                                 msg={msg}
                                                 conversation={conversation}
@@ -324,6 +409,31 @@ export function ChatWindow({
                     meId={meId}
                 />
             )}
+
+            <AlertDialog open={!!deleteMessageId} onOpenChange={(open) => !open && setDeleteMessageId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-xl text-primary">Delete message ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deleteMessageType === 'for_everyone'
+                                ? 'Are you sure you want to delete this message for everyone? This action cannot be undone.'
+                                : 'Are you sure you want to delete this message for yourself? It will remain visible to other participants.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={() => {
+                                if (deleteMessageId) handleDelete(deleteMessageId, deleteMessageType);
+                                setDeleteMessageId(null);
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

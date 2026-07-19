@@ -19,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Messages
     Route::post('chat/{conversation}/messages', [MessageController::class, 'store'])->name('messages.store');
+    Route::delete('chat/{conversation}/messages/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
 
     // Group Participants
     Route::post('chat/{conversation}/participants', [ConversationParticipantController::class, 'store'])->name('participants.store');
