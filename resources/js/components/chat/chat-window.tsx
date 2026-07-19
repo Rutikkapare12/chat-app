@@ -27,6 +27,7 @@ import type { ChatMessage, Conversation } from '@/types/chat';
 import { router } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
 import { TypingDots, typingLabel } from './typing-indicator';
+import { GroupInfoDialog } from './group-info-dialog';
 
 export function ChatWindow({
     conversation,
@@ -45,6 +46,7 @@ export function ChatWindow({
 }) {
     const [newMessage, setNewMessage] = useState('');
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>(messages);
+    const [groupInfoOpen, setGroupInfoOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const display = conversationDisplay(conversation, meId);
@@ -102,12 +104,23 @@ export function ChatWindow({
         <div className="flex h-full w-full flex-col bg-background">
             {/* Header */}
             <div className="flex items-center justify-between border-b p-3 shadow-sm">
-                <div className="flex items-center gap-3">
+                <div
+                    className={cn(
+                        'flex items-center gap-3',
+                        conversation.type === 'group' &&
+                            'cursor-pointer transition-opacity hover:opacity-80',
+                    )}
+                    onClick={() => {
+                        if (conversation.type === 'group')
+                            setGroupInfoOpen(true);
+                    }}
+                >
                     <Button
                         variant="ghost"
                         size="icon"
                         className="md:hidden"
                         asChild
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <a href="/chat">
                             <ArrowLeft className="size-5" />
@@ -130,9 +143,19 @@ export function ChatWindow({
                     </div>
                 </div>
                 <div>
-                    <Button variant="ghost" size="icon">
-                        <MoreVertical className="size-5" />
-                    </Button>
+                    {conversation.type === 'group' ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setGroupInfoOpen(true)}
+                        >
+                            <MoreVertical className="size-5" />
+                        </Button>
+                    ) : (
+                        <Button variant="ghost" size="icon">
+                            <MoreVertical className="size-5" />
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -149,7 +172,10 @@ export function ChatWindow({
 
                         if (msg.type === 'system') {
                             return (
-                                <div key={msg.id} className="flex justify-center w-full my-1">
+                                <div
+                                    key={msg.id}
+                                    className="my-1 flex w-full justify-center"
+                                >
                                     <span className="rounded-full bg-muted/70 px-3 py-0.5 text-xs text-muted-foreground italic select-none">
                                         {msg.body}
                                     </span>
@@ -165,11 +191,22 @@ export function ChatWindow({
                                     isMe ? 'items-end' : 'items-start',
                                 )}
                             >
-                                {!isMe && conversation.type === 'group' && msg.sender && (
-                                    <span className="text-[11px] font-medium text-primary mb-0.5 ml-1 select-none">
-                                        {msg.sender.name}
-                                    </span>
-                                )}
+                                {!isMe &&
+                                    conversation.type === 'group' &&
+                                    msg.sender && (
+                                        <div className="mb-1 ml-1 flex items-center gap-1.5 select-none">
+                                            <ChatAvatar
+                                                name={msg.sender.name}
+                                                avatarUrl={
+                                                    msg.sender.avatar_url
+                                                }
+                                                className="size-7"
+                                            />
+                                            <span className="text-[11px] font-medium text-primary">
+                                                {msg.sender.name}
+                                            </span>
+                                        </div>
+                                    )}
                                 <div
                                     className={cn(
                                         'relative max-w-[75%] rounded-2xl px-3 py-1.5 pb-5 text-sm shadow-sm',
@@ -178,16 +215,20 @@ export function ChatWindow({
                                             : 'rounded-tl-none bg-muted text-foreground',
                                     )}
                                 >
-                                    <div className="whitespace-pre-wrap break-words pr-10">
+                                    <div className="pr-10 break-words whitespace-pre-wrap">
                                         {msg.body}
                                     </div>
                                     <div
                                         className={cn(
-                                            'absolute bottom-1 right-2 flex items-center gap-1 text-[10px] select-none',
-                                            isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                                            'absolute right-2 bottom-1 flex items-center gap-1 text-[10px] select-none',
+                                            isMe
+                                                ? 'text-primary-foreground/70'
+                                                : 'text-muted-foreground',
                                         )}
                                     >
-                                        <span>{formatClock(msg.created_at)}</span>
+                                        <span>
+                                            {formatClock(msg.created_at)}
+                                        </span>
                                         {isMe && (
                                             <MessageStatusIcon
                                                 msg={msg}
@@ -274,6 +315,15 @@ export function ChatWindow({
                     </Button>
                 </form>
             </div>
+
+            {conversation.type === 'group' && (
+                <GroupInfoDialog
+                    open={groupInfoOpen}
+                    onOpenChange={setGroupInfoOpen}
+                    conversation={conversation}
+                    meId={meId}
+                />
+            )}
         </div>
     );
 }

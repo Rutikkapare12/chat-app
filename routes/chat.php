@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Chat\ChatController;
 use App\Http\Controllers\Chat\ConversationController;
+use App\Http\Controllers\Chat\ConversationParticipantController;
 use App\Http\Controllers\Chat\MessageController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,4 +19,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Messages
     Route::post('chat/{conversation}/messages', [MessageController::class, 'store'])->name('messages.store');
+
+    // Group Participants
+    Route::post('chat/{conversation}/participants', [ConversationParticipantController::class, 'store'])->name('participants.store');
+    Route::patch('chat/{conversation}/participants/{user}', [ConversationParticipantController::class, 'update'])->name('participants.update');
+    Route::delete('chat/{conversation}/participants/{user}', [ConversationParticipantController::class, 'destroy'])->name('participants.destroy');
 });
