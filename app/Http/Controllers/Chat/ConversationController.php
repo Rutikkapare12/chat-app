@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Chat\StoreConversationRequest;
 use App\Models\Conversation;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -10,14 +11,12 @@ use Illuminate\Http\Request;
 
 class ConversationController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(StoreConversationRequest $request): RedirectResponse
     {
         $user = $request->user();
+        $validated = $request->validated();
 
         if ($request->filled('user_id')) {
-            $validated = $request->validate([
-                'user_id' => ['required', 'string', 'uuid', 'exists:users,id', 'not_in:'.$user->id],
-            ]);
 
             $conversation = Conversation::findOrCreateDirect($user, User::findOrFail($validated['user_id']));
 
@@ -28,7 +27,35 @@ class ConversationController extends Controller
             return redirect()->route('chat.show', $conversation);
         }
 
-        // Group creation lands here — we build it in Episode 11.
+        if ($request->boolean('is_group')) {
+
+            $conversation = Conversation::create([
+                'type' => 'group',
+                'name' => $validated['name'],
+                'created_by' => $user->id,
+            ]);
+
+            $participants = [
+                $user->id => ['role' => 'admin', 'joined_at' => now()],
+            ];
+
+            foreach ($validated['user_ids'] as $id) {
+                $participants[$id] = ['role' => 'member', 'joined_at' => now()];
+            }
+
+            $conversation->participants()->attach($participants);
+
+            $conversation->addSystemMessage("{$user->name} created the group \"{$validated['name']}\".");
+
+            \Illuminate\Support\Facades\Cache::forget("user.{$user->id}.conversations");
+            foreach ($validated['user_ids'] as $id) {
+                \Illuminate\Support\Facades\Cache::forget("user.{$id}.conversations");
+            }
+
+            return redirect()->route('chat.show', $conversation);
+        }
+
+        abort(400, 'Invalid conversation type.');
     }
 
     public function markAsRead(Request $request, Conversation $conversation)

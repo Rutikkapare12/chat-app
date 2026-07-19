@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 import type { ChatMessage, Conversation } from '@/types/chat';
 import { NewChatDialog } from '@/components/chat/new-chat-dialog';
+import { NewGroupDialog } from '@/components/chat/new-group-dialog';
 import { useEcho, usePresenceChannel, useChannel } from '@laravel/echo-react';
 import { chatApi } from '@/lib/chat-api';
 import { toast } from 'sonner';
@@ -249,6 +250,10 @@ export default function ChatIndex() {
             <NewChatDialog
                 open={dialog === 'chat'}
                 onOpenChange={(o) => setDialog(o ? 'chat' : null)}
+            />
+            <NewGroupDialog
+                open={dialog === 'group'}
+                onOpenChange={(o) => setDialog(o ? 'group' : null)}
             />
         </div>
     );
